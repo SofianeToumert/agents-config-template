@@ -1,0 +1,116 @@
+---
+description: APPLY rule WHEN using Zod v4 library for schema validation, type inference, and data transformation in TypeScript projects
+globs: src/**/*.{ts,tsx}, **/*.schema.{ts,tsx}, **/schemas/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+## Schema Design Patterns
+
+- Use `z.object()` for structured data validation
+- Prefer `z.extend()` over object spread for schema composition
+- Use `z.discriminatedUnion()` for type-safe variant handling
+- Define recursive schemas with getters for complex data structures
+- Use `z.templateLiteral()` for string pattern validation
+- Prefer `z.literal([value1, value2])` over multiple `z.union()` calls
+- Use `z.tuple()` with rest for non-empty array types
+
+## Performance Optimization
+
+- Import from `zod/v4-mini` for tree-shaking in production builds
+- Reuse schemas with `.extend()` instead of recreating similar schemas
+- Use `z.overwrite()` for transformations that don't change inferred type
+- Cache frequently used schemas to avoid recreation overhead
+- Use `z.check()` for multiple validations in zod/v4-mini
+- Prefer synchronous operations over async when possible
+
+## Type Safety and Inference
+
+- Use `z.infer<typeof schema>` for type extraction
+- Define generic functions with `T extends z.ZodType` constraint
+- Use `z.ZodTypeAny` for maximum flexibility in generic functions
+- Prefer `safeParse()` over `parse()` for error handling
+- Use `z.pipe()` for validation pipelines with transforms
+- Define function schemas with `z.function()` for input/output validation
+
+## Validation Patterns
+
+- Use top-level validators: `z.email()`, `z.uuid()`, `z.url()`
+- Use `z.coerce.*()` for automatic type coercion
+- Use `z.stringbool()` for boolean string conversion
+- Use `z.file()` for File instance validation with size/type constraints
+- Use `z.enum()` directly with TypeScript enums
+- Use `z.record()` with both key and value schemas
+
+## Error Handling
+
+- Use `{ error: "message" }` parameter for custom error messages
+- Use `z.prettifyError()` for human-readable error display
+- Use `z.catch()` for fallback values on validation failure
+- Use `z.superRefine()` for complex validation logic
+- Use `z.refine()` for custom validation with custom error messages
+- Handle async validation with `parseAsync()` and `safeParseAsync()`
+
+## Form and API Integration
+
+- Use `z.formData()` for FormData validation in web APIs
+- Use `z.urlSearchParams()` for query parameter validation
+- Use `z.json()` for JSON string validation
+- Use `z.date()` for Date instance validation
+- Use `z.promise()` for Promise validation
+- Use `z.instanceof()` for class instance validation
+
+## Schema Composition
+
+- Use `z.intersection()` for combining schemas
+- Use `z.union()` for multiple valid types
+- Use `z.optional()` for optional fields
+- Use `z.nullable()` for nullable fields
+- Use `z.default()` for default values
+- Use `z.transform()` for data transformation
+
+## Advanced Patterns
+
+- Use `z.lazy()` for circular dependencies
+- Use `z.custom()` for custom validation logic
+- Use `z.any()` sparingly, prefer `z.unknown()`
+- Use `z.never()` for impossible types
+- Use `z.void()` for functions that return nothing
+- Use `z.undefined()` for explicit undefined values
+
+## Metadata and Documentation
+
+- Use `z.meta()` for schema documentation
+- Use `z.describe()` for backward compatibility
+- Use `z.globalRegistry` for shared metadata
+- Use `z.registry()` for custom metadata storage
+- Use `z.toJSONSchema()` for OpenAPI generation
+- Use `z.prettifyError()` for development debugging
+
+## Testing and Development
+
+- Use `z.safeParse()` for testing validation logic
+- Use `z.parse()` for runtime validation
+- Use `z.issues` for detailed error information
+- Use `z.path` for error location tracking
+- Use `z.code` for error type identification
+- Use `z.message` for user-friendly error messages
+
+## Vite TypeScript Integration
+
+- Use `import { z } from "zod/v4"` for full features
+- Use `import { z } from "zod/v4-mini"` for tree-shaking
+- Use `import { z } from "zod/v4/core"` for core utilities
+- Configure Vite for optimal Zod tree-shaking
+- Use Zod schemas for environment variable validation
+- Use Zod schemas for configuration validation
+
+## Best Practices
+
+- Always validate external data at API boundaries
+- Use descriptive schema names for better debugging
+- Prefer composition over inheritance for schema reuse
+- Use `z.strictObject()` for strict object validation
+- Use `z.looseObject()` for permissive object validation
+- Use `z.catchall()` for unknown object properties
+- Use `z.passthrough()` for preserving unknown properties
+- Use `z.strip()` for removing unknown properties

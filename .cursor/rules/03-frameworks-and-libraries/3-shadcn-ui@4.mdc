@@ -1,0 +1,108 @@
+---
+description: APPLY rule WHEN using Shadcn/ui component library
+alwaysApply: false
+---
+
+Project Configuration:
+
+- Configure path aliases in `vite.config.ts` with `@` mapping to `./src`.
+- Set `baseUrl` and `paths` in both `tsconfig.json` and `tsconfig.app.json`.
+- Use `@/components/ui/` for Shadcn/ui components.
+- Use `@/lib/utils` for utility functions.
+- Configure `components.json` with proper aliases and TypeScript support.
+
+Component Structure:
+
+- Import components using configured aliases (`@/components/ui/button`).
+- Use `cn()` utility for conditional class merging.
+- Extend component variants with `cva()` for type safety.
+- Keep components in `src/components/ui/` directory.
+- Use Radix UI primitives as base components.
+
+TypeScript Integration:
+
+- Enable `tsx: true` in `components.json` for TypeScript components.
+- Use strict TypeScript configuration with proper path resolution.
+- Type component props with interfaces extending HTML attributes.
+- Use `React.ComponentPropsWithoutRef` for prop spreading.
+- Implement proper type inference for component variants.
+
+Styling and Theming:
+
+- Use CSS variables for theme values (`var(--background)`).
+- Configure `cssVariables: true` in `components.json`.
+- Implement dark mode with `ThemeProvider` and `useTheme` hook.
+- Use Tailwind CSS v4.1 with CSS-based configuration.
+- Apply consistent spacing and color tokens.
+
+CLI Usage:
+
+- Use `npx shadcn@latest init` for project initialization.
+- Install components with `npx shadcn@latest add [component]`.
+- Use registry blocks for complex UI patterns.
+- Override primitives when customizing components.
+- Keep components up-to-date with latest versions.
+
+Component Development:
+
+- Compose components using Radix UI primitives.
+- Implement proper accessibility attributes.
+- Use semantic HTML elements within components.
+- Add proper ARIA labels and descriptions.
+- Ensure keyboard navigation support.
+
+Theme Management:
+
+- Create `ThemeProvider` with localStorage persistence.
+- Implement theme toggle with dropdown menu.
+- Use system theme detection with `matchMedia`.
+- Apply theme classes to document root element.
+- Store theme preference with configurable storage key.
+
+Import Patterns:
+
+- Use absolute imports with configured aliases.
+- Import utilities from `@/lib/utils`.
+- Import UI components from `@/components/ui/`.
+- Import theme provider from `@/components/theme-provider`.
+- Use barrel exports for component organization.
+
+Configuration Files:
+
+- Set `style: "new-york"` in `components.json` for modern styling.
+- Configure `rsc: false` for client-side React applications.
+- Use `iconLibrary: "lucide"` for consistent iconography.
+- Set proper Tailwind CSS configuration paths.
+- Configure ESLint for TypeScript-aware linting.
+
+Best Practices:
+
+- Follow component composition patterns.
+- Use proper TypeScript types for all props.
+- Implement responsive design with mobile-first approach.
+- Ensure proper error boundaries and loading states.
+- Maintain consistent component API design.
+- Use proper semantic HTML structure.
+- Implement proper form handling with validation.
+- Follow accessibility guidelines (WCAG 2.1).
+- Use proper color contrast ratios.
+- Implement proper focus management.
+
+Performance Optimization:
+
+- Use React.memo for expensive components.
+- Implement proper lazy loading for large components.
+- Use proper key props for list rendering.
+- Optimize bundle size with tree shaking.
+- Use proper code splitting strategies.
+
+Testing and Quality:
+
+- Write unit tests for component logic.
+- Test component variants and states.
+- Ensure proper accessibility testing.
+- Test theme switching functionality.
+- Validate component props with TypeScript.
+- Use proper error handling patterns.
+- Implement proper loading states.
+- Test responsive behavior across breakpoints.

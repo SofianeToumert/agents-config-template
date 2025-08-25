@@ -1,0 +1,11 @@
+---
+description: APPLY module based architecture WHEN organizing code in the app
+globs:
+alwaysApply: false
+---
+
+- Organize code by business module
+- Place all module code in its own folder
+- Co-locate components, hooks, and state per module
+- Use shared folders for common code
+- Store modules in `modules/` directory

@@ -1,0 +1,311 @@
+---
+description: APPLY rule WHEN using Tanstack React Query library
+alwaysApply: false
+---
+
+## 🗂️ Folder Structure Example
+
+```
+src/
+  lib/
+    tanstack/
+      client.ts              // QueryClient & Provider setup
+      types.ts               // Shared query types and global registrations
+      keys/                  // Centralized query keys
+        userKeys.ts
+        postKeys.ts
+      options/               // Shared query and mutation options
+        userOptions.ts
+        postOptions.ts
+      hooks/
+        useUserQuery.ts
+        useCreateUserMutation.ts
+      fetchers/
+        fetchUser.ts
+        createUser.ts
+```
+
+## 🔑 Query Key Conventions
+
+```ts
+const userKeys = {
+  all: ["users"] as const,
+  list: (filters: { page: number }) => ["users", "list", filters] as const,
+  detail: (id: string) => ["users", "detail", id] as const,
+  search: (query: string) => ["users", "search", query] as const,
+};
+```
+
+- Always define keys as `as const` tuples
+- Use descriptive key names for better debugging
+- Include dynamic parameters in key arrays
+- Avoid string concatenation like `'users_detail_1'`
+
+## 🎯 Query Options Helper
+
+```ts
+import { queryOptions } from "@tanstack/react-query";
+
+export const userOptions = {
+  list: (filters: { page: number }) =>
+    queryOptions({
+      queryKey: userKeys.list(filters),
+      queryFn: () => fetchUsers(filters),
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 60,
+    }),
+
+  detail: (id: string) =>
+    queryOptions({
+      queryKey: userKeys.detail(id),
+      queryFn: () => fetchUser(id),
+      enabled: !!id,
+    }),
+};
+```
+
+## 🧵 Hook Template with Query Options
+
+```ts
+import { useQuery } from "@tanstack/react-query";
+import { userOptions } from "../options/userOptions";
+
+export const useUserQuery = (id: string) => {
+  return useQuery(userOptions.detail(id));
+};
+
+export const useUsersQuery = (filters: { page: number }) => {
+  return useQuery(userOptions.list(filters));
+};
+```
+
+## 🧬 Mutation Options Helper
+
+```ts
+import { mutationOptions } from "@tanstack/react-query";
+
+export const userMutationOptions = {
+  create: () =>
+    mutationOptions({
+      mutationKey: ["users", "create"],
+      mutationFn: createUser,
+    }),
+
+  update: (id: string) =>
+    mutationOptions({
+      mutationKey: ["users", "update", id],
+      mutationFn: (data: UpdateUserData) => updateUser(id, data),
+    }),
+};
+```
+
+## 🔄 Mutation Hook Template
+
+```ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { userMutationOptions } from "../options/userOptions";
+import { userKeys } from "../keys/userKeys";
+
+export const useCreateUserMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    ...userMutationOptions.create(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+      queryClient.setQueryData(userKeys.detail(data.id), data);
+    },
+  });
+};
+```
+
+## 🏗️ QueryClient Setup
+
+```ts
+import { QueryClient } from "@tanstack/react-query";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 60,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
+```
+
+## 🔍 Global Type Registration
+
+```ts
+// types.ts
+import "@tanstack/react-query";
+
+type QueryKey = ["users" | "posts" | "todos", ...ReadonlyArray<unknown>];
+
+declare module "@tanstack/react-query" {
+  interface Register {
+    queryKey: QueryKey;
+    mutationKey: QueryKey;
+  }
+}
+```
+
+## 🎭 Optimistic Updates
+
+```ts
+export const useUpdateUserMutation = (id: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    ...userMutationOptions.update(id),
+    onMutate: async (newData) => {
+      await queryClient.cancelQueries({ queryKey: userKeys.detail(id) });
+      const previousData = queryClient.getQueryData(userKeys.detail(id));
+
+      queryClient.setQueryData(userKeys.detail(id), (old) => ({
+        ...old,
+        ...newData,
+      }));
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(userKeys.detail(id), context?.previousData);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.detail(id) });
+    },
+  });
+};
+```
+
+## 📊 Mutation State Hooks
+
+```ts
+import { useMutationState, useIsMutating } from "@tanstack/react-query";
+
+// Track all pending mutations
+export const usePendingMutations = () => {
+  return useMutationState({
+    filters: { status: "pending" },
+  });
+};
+
+// Count specific mutations
+export const useUserMutationCount = () => {
+  return useIsMutating({ mutationKey: ["users"] });
+};
+```
+
+## 🧼 Type-Safe API Responses with Zod
+
+```ts
+import { z } from "zod";
+
+const userSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+});
+
+export const fetchUser = async (id: string) => {
+  const res = await fetch(`/api/users/${id}`);
+  if (!res.ok) throw new Error("Failed to fetch user");
+  const json = await res.json();
+  return userSchema.parse(json);
+};
+```
+
+## 🧪 Testing Patterns
+
+```ts
+import { renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+const wrapper = ({ children }) => {
+  const testQueryClient = createTestQueryClient();
+  return (
+    <QueryClientProvider client={testQueryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+};
+
+// Test hook
+const { result } = renderHook(() => useUserQuery("1"), { wrapper });
+await waitFor(() => expect(result.current.isSuccess).toBe(true));
+```
+
+## 📌 TypeScript Configuration
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@lib/*": ["lib/*"],
+      "@hooks/*": ["lib/tanstack/hooks/*"],
+      "@fetchers/*": ["lib/tanstack/fetchers/*"],
+      "@keys/*": ["lib/tanstack/keys/*"],
+      "@options/*": ["lib/tanstack/options/*"]
+    }
+  }
+}
+```
+
+## ⚡ Performance Optimizations
+
+```ts
+// Use select for data transformation
+const useUserNames = (filters: { page: number }) => {
+  return useQuery({
+    ...userOptions.list(filters),
+    select: (users) => users.map((user) => user.name),
+  });
+};
+
+// Enable suspense for loading boundaries
+const useUserSuspense = (id: string) => {
+  return useQuery({
+    ...userOptions.detail(id),
+    suspense: true,
+  });
+};
+```
+
+## 🚫 Common Anti-Patterns
+
+- Don't store app state in query cache
+- Don't re-fetch mutations—use `invalidateQueries`
+- Don't put hook results directly in dependency arrays
+- Don't use string concatenation for query keys
+- Don't forget to handle loading and error states
+
+## ✅ Best Practices
+
+- Use `enabled: false` for conditional fetches
+- Use `select` to transform data efficiently
+- Use `keepPreviousData: true` for smooth pagination
+- Use `suspense: true` with proper boundaries
+- Use `queryOptions` and `mutationOptions` for reusability
+- Use global type registration for better type safety
+- Use optimistic updates for better UX
+- Use `useMutationState` for global mutation tracking
+
+- ✅ Use `keepPreviousData: true` for smooth pagination
+- 🚫 Avoid storing app state in query cache
+- 🚫 Don’t re-fetch mutations—use `invalidateQueries`

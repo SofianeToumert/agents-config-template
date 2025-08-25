@@ -1,0 +1,194 @@
+---
+description: APPLY TypeScript naming conventions WHEN writing code
+globs: src/**/*.ts, src/**/*.tsx
+alwaysApply: false
+---
+
+TypeScript Project Rules
+
+## 0) Scope & Intent
+
+- These rules guide TypeScript code in this repo (Cursor/Claude aware).
+- Default to **functional, declarative** patterns; avoid classes unless interop requires them.
+- Write concise, technical TypeScript with accurate examples.
+
+---
+
+## 1) Editing Constraints (for AI assistants)
+
+- Do **not** remove existing code or comments unless required for new functionality.
+- Do **not** change import formatting.
+- Keep diffs minimal; preserve structure unless changes are necessary.
+
+---
+
+## 2) Tech Defaults
+
+- Use latest **stable** TypeScript and JavaScript.
+- Write clean, maintainable TypeScript code with strong typing.
+
+---
+
+## 3) Project Structure & Exports
+
+- Directory names: **lowercase-with-dashes** (e.g., `utils/data-helpers`).
+- File order: **exported functions**, **helpers**, **static content**, **types**.
+- Favor **named exports** for functions/utilities.
+
+---
+
+## 4) Naming Conventions
+
+- **Classes/Interfaces**: `PascalCase`; use **nouns** or noun phrases. (Avoid classes when possible; if used, keep cohesive—no anemic models.)
+- **Functions/Methods**: `camelCase`.
+  - Use **verbs** for actions/mutations (e.g., `fetchUser`, `persistSession`).
+  - Use **nouns** for value-returning selectors/snapshots (e.g., `userSnapshot`).
+- **Booleans**: prefix with `is/has/should` (e.g., `isLoading`, `hasError`, `shouldPersist`).
+- Variables: descriptive, domain-meaningful names.
+
+---
+
+## 5) TypeScript Fundamentals
+
+- **Strictness**
+
+  - Type **everything** explicitly at boundaries (public APIs, returns). Allow local inference in small scopes.
+  - **Never use `any`.**
+  - `unknown` is allowed **only at trust boundaries** (e.g., `catch (e: unknown)`), then **narrow** with guards.
+  - Avoid `as` assertions. Prefer **type guards**, discriminated unions, schema validators (e.g., Zod) for narrowing.
+  - Use **generics** for reusable utilities; descriptive params (`TItem`, `TError`, `TData`, `TKey`).
+
+- **Interfaces vs Types**
+
+  - Prefer **`interface`** for extensible object shapes (declaration merging).
+  - Use **`type`** for **unions**, **intersections**, **mapped/utility** types, or primitives.
+
+- **Nullability**
+
+  - Avoid returning `null` / `undefined`. Use explicit models like `Result<T, E>` or an `Option<T>`.
+
+- **Enums**
+  - Prefer **string literal unions** and `Record`/object **maps** over enums.
+  - If unavoidable (interop/perf), use **`const enum`** with explicit values and stable wire formats.
+
+---
+
+## 6) Functions & Composition
+
+- Use the **`function`** keyword for pure functions (named declarations aid stack traces).
+- Keep functions **small and composable**. Prefer iteration & modularization over duplication.
+- Use **curly braces** for all conditionals; clarity over cleverness.
+- **Early returns & guard clauses** to handle edge cases first.
+
+**Example (type guard + early return):**
+
+```ts
+function isUser(input: unknown): input is { id: string; name: string } {
+  return (
+    typeof input === "object" &&
+    input !== null &&
+    "id" in input &&
+    typeof (input as any).id === "string" &&
+    "name" in input &&
+    typeof (input as any).name === "string"
+  );
+}
+
+export function userSnapshot(input: unknown) {
+  if (!isUser(input)) return null; // or Option.none / Result.err
+  return { id: input.id, name: input.name };
+}
+```
+
+## 7) Data Modeling Patterns
+
+- Prefer discriminated unions over class hierarchies.
+- Keep models non-anemic by colocating behavior with data via modules (functions operating on types), not classes.
+- Replace enum+switch boilerplate with maps.
+
+**Example:**
+
+```ts
+type Status = "idle" | "loading" | "success" | "error";
+const statusLabel: Record<Status, string> = {
+  idle: "Idle",
+  loading: "Loading…",
+  success: "Done",
+  error: "Error",
+};
+```
+
+- Model absence explicitly (e.g., `Result<T, E>`), not with null.
+
+---
+
+## 8) Error Handling & Logging
+
+- Catching: `catch (err: unknown)`; immediately narrow.
+- Handle errors and edge cases early; use early returns.
+- Provide user-friendly messages at UI boundaries; log technical details with context (operation, inputs, correlation IDs).
+- Prefer `Result<T, E>` for recoverable failures; throw only when truly exceptional.
+
+**Example:**
+
+```ts
+function toError(e: unknown): Error {
+  if (e instanceof Error) return e;
+  return new Error(typeof e === "string" ? e : "Unknown error");
+}
+```
+
+---
+
+## 9) Generics & Reuse
+
+- Use descriptive generic names (`TData`, `TItem`, `TKey`, `TQuery`)—avoid single letters except in tight scopes.
+- Constrain generics (`<T extends object>`) where possible to improve inference.
+- Offer overloads/helpers when they improve call-site DX and types.
+
+**Example:**
+
+```ts
+export function groupBy<TItem, TKey extends PropertyKey>(
+  items: readonly TItem[],
+  key: (x: TItem) => TKey
+): Record<TKey, TItem[]> {
+  return items.reduce((acc, item) => {
+    const k = key(item);
+    (acc[k] ||= []).push(item);
+    return acc;
+  }, {} as Record<TKey, TItem[]>);
+}
+```
+
+## 12) Examples & Conventions (Quick)
+
+**Union + map instead of switch:**
+
+```ts
+type Status = "idle" | "loading" | "success" | "error";
+const statusLabel: Record<Status, string> = {
+  idle: "Idle",
+  loading: "Loading…",
+  success: "Done",
+  error: "Error",
+};
+```
+
+**Result type (avoid null):**
+
+```ts
+type Ok<T> = { ok: true; value: T };
+type Err<E = Error> = { ok: false; error: E };
+export type Result<T, E = Error> = Ok<T> | Err<E>;
+```
+
+- Boolean naming: `isVisible`, `hasPermission`, `shouldPersist`.
+
+---
+
+## 13) When in Doubt
+
+- Prefer clarity over cleverness.
+- Prefer type safety over runtime assumptions.
+- If rules conflict, choose the option that improves readability and type safety with the smallest diff.

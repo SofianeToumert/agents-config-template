@@ -1,0 +1,108 @@
+---
+description: APPLY rule WHEN using Shadcn/ui component library
+alwaysApply: false
+---
+
+# Theme Provider Setup:
+
+- Create `ThemeProvider` component with React Context.
+- Use `localStorage` for theme persistence.
+- Implement system theme detection with `matchMedia`.
+- Apply theme classes to document root element.
+- Provide `useTheme` hook for theme consumption.
+
+Theme Types:
+
+- Define `Theme` type as `"dark" | "light" | "system"`.
+- Use proper TypeScript interfaces for theme state.
+- Implement proper theme validation and fallbacks.
+- Handle theme transitions smoothly.
+- Provide proper default theme values.
+
+CSS Variables:
+
+- Use CSS variables for all theme values.
+- Define color tokens with semantic names.
+- Implement proper color contrast ratios.
+- Use CSS custom properties for dynamic theming.
+- Apply consistent spacing and typography tokens.
+
+Dark Mode Implementation:
+
+- Remove existing theme classes before applying new ones.
+- Handle system theme preference changes.
+- Implement proper theme switching without flash.
+- Use proper CSS transitions for theme changes.
+- Ensure proper color scheme meta tags.
+
+Theme Toggle Component:
+
+- Create accessible theme toggle with dropdown menu.
+- Use proper ARIA labels and descriptions.
+- Implement keyboard navigation support.
+- Use consistent iconography for theme states.
+- Provide visual feedback for theme changes.
+
+Theme Persistence:
+
+- Store theme preference with configurable storage key.
+- Handle localStorage availability gracefully.
+- Implement proper theme initialization.
+- Provide fallback theme when storage fails.
+- Use proper error handling for theme operations.
+
+System Theme Detection:
+
+- Use `window.matchMedia("(prefers-color-scheme: dark)")`.
+- Listen for system theme preference changes.
+- Update theme automatically when system preference changes.
+- Handle media query support gracefully.
+- Provide proper fallback for unsupported browsers.
+
+Theme Context:
+
+- Create proper React Context for theme state.
+- Implement proper context provider with value prop.
+- Use proper error boundaries for theme context.
+- Provide proper default values for context.
+- Implement proper context optimization.
+
+Theme Utilities:
+
+- Create utility functions for theme operations.
+- Implement proper theme validation.
+- Use proper type guards for theme values.
+- Create helper functions for theme switching.
+- Implement proper theme debugging utilities.
+
+Accessibility:
+
+- Ensure proper color contrast in all themes.
+- Use proper focus indicators for theme elements.
+- Implement proper screen reader support.
+- Provide proper theme announcement for assistive technologies.
+- Use semantic HTML for theme controls.
+
+Performance:
+
+- Optimize theme switching performance.
+- Use proper memoization for theme calculations.
+- Implement proper lazy loading for theme resources.
+- Minimize re-renders during theme changes.
+- Use proper CSS optimization for theme styles.
+
+Testing:
+
+- Test theme switching functionality.
+- Test system theme detection.
+- Test theme persistence across sessions.
+- Test theme accessibility features.
+- Test theme performance under load.
+
+Integration:
+
+- Integrate theme with component variants.
+- Use theme values in component styling.
+- Implement proper theme-aware components.
+- Use consistent theme tokens across components.
+- Provide proper theme documentation.

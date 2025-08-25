@@ -1,0 +1,68 @@
+---
+description: APPLY rule WHEN using Shadcn/ui component library
+alwaysApply: false
+---
+
+# Vite Configuration:
+
+- Import `path` from Node.js for path resolution.
+- Use `@vitejs/plugin-react` for React support.
+- Use `@tailwindcss/vite` for Tailwind CSS integration.
+- Configure `resolve.alias` with `@` mapping to `./src`.
+- Set proper build options for component library usage.
+
+TypeScript Configuration:
+
+- Configure `baseUrl: "."` in `tsconfig.json` and `tsconfig.app.json`.
+- Set `paths: { "@/*": ["./src/*"] }` for absolute imports.
+- Enable strict TypeScript options for type safety.
+- Configure proper module resolution for component imports.
+- Set `jsx: "react-jsx"` for modern React syntax.
+
+Path Resolution:
+
+- Use `path.resolve(__dirname, "./src")` for alias configuration.
+- Ensure consistent path mapping across all config files.
+- Configure proper module resolution for component discovery.
+- Set up proper import alias resolution for development.
+- Use absolute paths for component imports.
+
+Build Optimization:
+
+- Configure proper chunk splitting for component libraries.
+- Set up tree shaking for unused component removal.
+- Optimize bundle size with proper dependency management.
+- Configure proper source maps for debugging.
+- Set up proper asset handling for component resources.
+
+Development Setup:
+
+- Install `@types/node` for Node.js type definitions.
+- Configure proper hot module replacement for components.
+- Set up proper development server configuration.
+- Configure proper environment variable handling.
+- Set up proper proxy configuration if needed.
+
+Production Build:
+
+- Configure proper minification for production builds.
+- Set up proper asset optimization for component resources.
+- Configure proper chunk naming for better caching.
+- Set up proper source map generation for debugging.
+- Configure proper build output directory structure.
+
+Dependencies:
+
+- Install `tailwindcss` and `@tailwindcss/vite` for styling.
+- Install `@vitejs/plugin-react` for React support.
+- Install `@types/node` for TypeScript support.
+- Install `class-variance-authority` for component variants.
+- Install `clsx` and `tailwind-merge` for class utilities.
+
+Configuration Validation:
+
+- Verify path aliases work correctly in development.
+- Test component imports with configured aliases.
+- Validate TypeScript path resolution in IDE.
+- Test build process with component library.
+- Verify proper asset loading in development and production.

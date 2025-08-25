@@ -1,0 +1,117 @@
+---
+description: APPLY rule WHEN using Tanstack React Query library
+globs:
+alwaysApply: false
+---
+
+Project Initialization:
+
+- Use `npx shadcn@latest init` for project setup.
+- Configure `components.json` with proper TypeScript support.
+- Set `style: "new-york"` for modern component styling.
+- Enable `tsx: true` for TypeScript component generation.
+- Configure proper import aliases for project structure.
+
+Component Installation:
+
+- Use `npx shadcn@latest add [component]` for component installation.
+- Install components in order of dependencies.
+- Use registry blocks for complex UI patterns.
+- Override primitives when customizing components.
+- Keep components up-to-date with latest versions.
+
+Registry Usage:
+
+- Use registry blocks for pre-built UI patterns.
+- Install blocks with `npx shadcn@latest add [block]`.
+- Override primitive components when needed.
+- Use remote registry items for custom components.
+- Configure proper registry dependencies.
+
+Configuration Management:
+
+- Maintain consistent `components.json` configuration.
+- Use proper aliases for component and utility imports.
+- Configure Tailwind CSS integration properly.
+- Set up proper icon library configuration.
+- Maintain proper TypeScript configuration.
+
+Workflow Patterns:
+
+- Install components before using them in code.
+- Use proper import patterns with configured aliases.
+- Follow component composition patterns.
+- Implement proper error handling for CLI operations.
+- Use proper version management for components.
+
+Custom Components:
+
+- Create custom components following Shadcn/ui patterns.
+- Use proper TypeScript interfaces for component props.
+- Implement proper component variants with `cva()`.
+- Follow accessibility guidelines for custom components.
+- Use proper styling patterns with CSS variables.
+
+Dependency Management:
+
+- Install required dependencies for components.
+- Use proper version constraints for component libraries.
+- Manage peer dependencies correctly.
+- Update components and dependencies regularly.
+- Handle dependency conflicts properly.
+
+Development Workflow:
+
+- Use CLI for component installation and updates.
+- Follow proper component organization patterns.
+- Implement proper testing for installed components.
+- Use proper documentation for custom components.
+- Follow proper code review practices.
+
+Quality Assurance:
+
+- Validate component installations work correctly.
+- Test component functionality after installation.
+- Ensure proper TypeScript support for components.
+- Verify accessibility features work properly.
+- Test component performance and bundle size.
+
+Documentation:
+
+- Document custom component usage patterns.
+- Maintain proper component documentation.
+- Use proper code comments for complex components.
+- Document component dependencies and requirements.
+- Provide proper examples for component usage.
+
+Troubleshooting:
+
+- Handle CLI installation errors gracefully.
+- Debug component import issues properly.
+- Resolve dependency conflicts effectively.
+- Fix TypeScript configuration issues.
+- Handle build and runtime errors properly.
+
+Best Practices:
+
+- Use consistent component naming conventions.
+- Follow proper file organization patterns.
+- Implement proper error boundaries for components.
+- Use proper loading states for component initialization.
+- Follow proper testing patterns for components.
+
+Performance Optimization:
+
+- Optimize component bundle size.
+- Use proper code splitting for large components.
+- Implement proper lazy loading for components.
+- Optimize component rendering performance.
+- Use proper caching strategies for components.
+
+Security:
+
+- Validate component dependencies for security.
+- Use proper version constraints for security updates.
+- Implement proper input validation for components.
+- Follow security best practices for component usage.
+- Use proper authentication and authorization patterns.
