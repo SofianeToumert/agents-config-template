@@ -1,0 +1,233 @@
+---
+description: APPLY rule WHEN using React router library
+alwaysApply: false
+---
+
+## 🗂️ Project Structure
+
+```
+src/
+  app/
+    routes.ts                    // Main route configuration
+    react-router.config.ts       // Framework configuration
+    routes/
+      _layout.tsx               // Root layout
+      index.tsx                 // Home route
+      about.tsx                 // About route
+      users/
+        _layout.tsx             // Users layout
+        index.tsx               // Users list
+        $userId.tsx             // User detail
+        $userId.edit.tsx        // User edit
+      api/
+        users.tsx               // Resource route
+  .react-router/
+    types/                      // Generated types
+```
+
+## 🛣️ Route Configuration
+
+- Use `RouteConfig` type for type-safe route definitions
+- Export route array from `app/routes.ts` with `satisfies RouteConfig`
+- Use `route()` helper for explicit route definitions
+- Use `flatRoutes()` for file-based routing conventions
+- Define nested routes with children array
+- Use `index()` for default child routes
+- Use `layout()` for shared layouts without URL segments
+
+```ts
+import {
+  type RouteConfig,
+  route,
+  index,
+  layout,
+} from "@react-router/dev/routes";
+
+export default [
+  index("./routes/index.tsx"),
+  route("about", "./routes/about.tsx"),
+  layout("./routes/_layout.tsx", [
+    route("users", "./routes/users/index.tsx"),
+    route("users/:userId", "./routes/users/$userId.tsx"),
+  ]),
+] satisfies RouteConfig;
+```
+
+## 🔒 Type Safety
+
+- Enable type generation with `react-router typegen`
+- Import generated types from `./+types/route-name`
+- Use `Route.LoaderArgs` and `Route.ActionArgs` for type safety
+- Extend `AppLoadContext` interface for custom context
+- Use `useRouteLoaderData<typeof loader>()` for cross-route data access
+- Configure `rootDirs` in tsconfig for type imports
+
+```ts
+import type { Route } from "./+types/user";
+
+export async function loader({ params }: Route.LoaderArgs) {
+  // params.userId is typed as string
+}
+
+export default function Component({ loaderData }: Route.DefaultProps) {
+  // loaderData is fully typed
+}
+```
+
+## 🧩 Component Structure
+
+- Export `loader`, `action`, and default `Component` from route modules
+- Use `Outlet` for rendering nested routes
+- Create layout components for shared UI
+- Handle loading states with `HydrateFallback`
+- Implement error boundaries with `ErrorBoundary`
+- Use `shouldRevalidate` for optimization control
+
+```tsx
+import { Outlet } from "react-router-dom";
+
+export default function Layout() {
+  return (
+    <div>
+      <nav>Navigation</nav>
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+```
+
+## 📊 Data Loading
+
+- Use `loader` for data fetching and preparation
+- Use `action` for form submissions and mutations
+- Return `Response` objects for resource routes
+- Use `redirect()` for navigation after actions
+- Implement `shouldRevalidate` for cache control
+- Use `useLoaderData()` and `useActionData()` hooks
+
+```ts
+export async function loader({ params }: Route.LoaderArgs) {
+  const user = await getUser(params.userId);
+  if (!user) throw new Response("Not found", { status: 404 });
+  return { user };
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  const formData = await request.formData();
+  await updateUser(formData);
+  return redirect("/users");
+}
+```
+
+## ⚡ Performance Optimization
+
+- Enable SSR with `ssr: true` in config
+- Configure pre-rendering with `prerender` array
+- Use `lazy` imports for code splitting
+- Implement `dataStrategy` for custom data fetching
+- Use presets for bundle optimization
+- Configure `serverBundles` for server-side code splitting
+
+```ts
+// react-router.config.ts
+export default {
+  ssr: true,
+  async prerender() {
+    return ["/", "/about", "/contact"];
+  },
+} satisfies Config;
+```
+
+## 🔧 Vite Integration
+
+- Use `@react-router/dev/vite` plugin instead of React plugin
+- Configure `react-router.config.ts` for framework settings
+- Enable type generation with Vite plugin
+- Use `@react-router/node` for SSR runtime
+- Configure `rootDirs` in tsconfig for generated types
+- Use `--watch` flag for development type generation
+
+```ts
+// vite.config.ts
+import { reactRouter } from "@react-router/dev/vite";
+
+export default defineConfig({
+  plugins: [reactRouter()],
+});
+```
+
+## 🎯 Route Patterns
+
+- Use `:param` for dynamic segments
+- Use `:param?` for optional segments
+- Use `*` for catch-all routes
+- Use `/*` for splat routes
+- Use `edit?` for optional static segments
+- Group routes with `prefix()` helper
+
+```ts
+route("users/:userId/edit?", "./routes/users/$userId.tsx"), // Optional edit
+route("files/*", "./routes/files.tsx"),                    // Splat route
+route(":lang?/categories", "./routes/categories.tsx"),     // Optional lang
+```
+
+## 🔄 Resource Routes
+
+- Create routes without default component export
+- Return `Response` objects from loaders/actions
+- Handle multiple HTTP methods in single route
+- Use `reloadDocument` prop for external links
+- Set appropriate content-type headers
+- Implement proper error handling
+
+```tsx
+export async function loader({ params }: Route.LoaderArgs) {
+  const pdf = await generatePDF(params.id);
+  return new Response(pdf, {
+    headers: { "Content-Type": "application/pdf" },
+  });
+}
+```
+
+## 🎨 Component Routes
+
+- Use `Routes` and `Route` for component-based routing
+- Define routes within components for dynamic routing
+- Use `createRoutesFromElements` for JSX route definitions
+- Implement wizard flows and multi-step forms
+- Handle conditional routing based on state
+
+```tsx
+import { Routes, Route } from "react-router-dom";
+
+function Wizard() {
+  return (
+    <Routes>
+      <Route index element={<StepOne />} />
+      <Route path="step-2" element={<StepTwo />} />
+      <Route path="step-3" element={<StepThree />} />
+    </Routes>
+  );
+}
+```
+
+## 🛡️ Error Handling
+
+- Implement error boundaries for route errors
+- Use `ErrorBoundary` export for custom error UI
+- Handle 404 errors with catch-all routes
+- Return proper HTTP status codes
+- Provide meaningful error messages
+- Log errors appropriately
+
+```tsx
+export function ErrorBoundary() {
+  return <div>Something went wrong</div>;
+}
+
+export async function loader() {
+  throw new Response("Not found", { status: 404 });
+}
+```

@@ -1,5 +1,154 @@
 ---
-description:
-globs:
+description: Apply Motion animation library standards for React components, TypeScript integration, performance optimization, and accessibility when creating animations in Vite + TypeScript web applications
+globs: src/**/*.{tsx,ts}, **/components/**/*.{tsx,ts}, **/animations/**/*.{tsx,ts}
 alwaysApply: false
 ---
+
+## Import and Setup
+
+- Import `motion` from `"motion/react"` for React components
+- Import `AnimatePresence` for exit animations
+- Import `useAnimate` for imperative animations
+- Import `useInView` for scroll-triggered animations
+- Import `usePresence` for custom exit animations
+- Use `LazyMotion` with `domAnimation` for bundle optimization
+
+## Core Animation Components
+
+- Use `motion.div` for basic element animations
+- Use `motion.button` for interactive element animations
+- Use `motion.span` for text animations
+- Use `motion.svg` for SVG element animations
+- Use `motion.path` for path animations
+- Use `motion.ul` and `motion.li` for list animations
+- Use `AnimatePresence` for exit animations
+
+## TypeScript Integration
+
+- Strongly type animation variants with interfaces
+- Use `z.infer<typeof schema>` for variant type extraction
+- Define custom animation types for complex animations
+- Use generic constraints for reusable animation components
+- Type motion values with `MotionValue<T>`
+- Use `Custom` prop for dynamic variant data
+
+## Performance Optimization
+
+- Use `LazyMotion` with `domAnimation` for tree-shaking
+- Use `useMotionValue` for performance-critical animations
+- Use `useAnimate` for complex animation sequences
+- Use `layout` prop sparingly for layout animations
+- Use `viewport={{ once: true }}` for one-time scroll animations
+- Use `transition={{ type: "tween" }}` for simple animations
+- Use `transition={{ type: "spring" }}` for natural motion
+
+## Animation Patterns
+
+- Use `initial` and `animate` props for enter animations
+- Use `exit` prop with `AnimatePresence` for exit animations
+- Use `whileHover` and `whileTap` for gesture animations
+- Use `whileInView` for scroll-triggered animations
+- Use `variants` for reusable animation states
+- Use `custom` prop for dynamic variant data
+- Use `staggerChildren` for sequential child animations
+
+## Variant Management
+
+- Define variants as const objects for type safety
+- Use descriptive variant names like `"visible"`, `"hidden"`
+- Use `transition` within variants for orchestration
+- Use `when: "beforeChildren"` for parent-first animations
+- Use `when: "afterChildren"` for child-first animations
+- Use `staggerChildren` for staggered animations
+- Use `delayChildren` for delayed child animations
+
+## Gesture Animations
+
+- Use `whileHover={{ scale: 1.1 }}` for hover effects
+- Use `whileTap={{ scale: 0.95 }}` for tap feedback
+- Use `whileFocus` for focus state animations
+- Use `whileDrag` for drag gesture animations
+- Use `drag` prop for draggable elements
+- Use `dragConstraints` for drag boundaries
+- Use `dragElastic` for drag resistance
+
+## Scroll Animations
+
+- Use `whileInView={{ opacity: 1 }}` for fade-in effects
+- Use `viewport={{ once: true }}` for one-time triggers
+- Use `viewport={{ amount: 0.5 }}` for partial visibility
+- Use `useInView` hook for custom scroll logic
+- Use `useScroll` for scroll-linked animations
+- Use `scrollYProgress` for scroll-based transforms
+- Use `scrollXProgress` for horizontal scroll animations
+
+## Exit Animations
+
+- Wrap components with `AnimatePresence` for exit animations
+- Use unique `key` props for proper exit tracking
+- Use `exit` prop to define exit animation states
+- Use `usePresence` for custom exit logic
+- Use `safeToRemove()` after exit animation completes
+- Use `layoutId` for shared element transitions
+- Use `mode="wait"` for sequential exit animations
+
+## Accessibility
+
+- Use `useReducedMotion` to respect user preferences
+- Provide alternative animations for reduced motion
+- Use `prefers-reduced-motion` media query
+- Ensure animations don't interfere with navigation
+- Use appropriate ARIA attributes for animated elements
+- Test animations with screen readers
+- Provide fallbacks for animation failures
+
+## Error Handling
+
+- Use `try-catch` blocks for animation controls
+- Handle animation cleanup in `useEffect` return
+- Use `controls.stop()` to cancel animations
+- Handle animation failures gracefully
+- Provide fallback states for failed animations
+- Log animation errors for debugging
+- Use `safeParse` pattern for animation validation
+
+## Advanced Patterns
+
+- Use `useAnimate` for complex animation sequences
+- Use `animate()` function for imperative animations
+- Use `useMotionValue` for performance-critical values
+- Use `useTransform` for derived motion values
+- Use `useSpring` for spring-based animations
+- Use `useScroll` for scroll-linked animations
+- Use `useTime` for time-based animations
+
+## Vite Integration
+
+- Configure Vite for optimal Motion tree-shaking
+- Use dynamic imports for heavy animation components
+- Use `LazyMotion` for code splitting
+- Optimize bundle size with `domAnimation` only
+- Use environment variables for animation settings
+- Configure build optimization for animation assets
+- Use Vite's HMR for animation development
+
+## Testing and Debugging
+
+- Test animations in different browsers
+- Test animations with different performance levels
+- Use React DevTools for animation debugging
+- Test animations with reduced motion preferences
+- Use `console.log` for animation state debugging
+- Test animations in different viewport sizes
+- Use performance profiling for animation optimization
+
+## Best Practices
+
+- Keep animations under 300ms for UI feedback
+- Use easing functions for natural motion
+- Prefer transform animations over layout changes
+- Use `will-change` CSS property sparingly
+- Avoid animating `height` and `width` properties
+- Use `transform` and `opacity` for performance
+- Test animations on mobile devices
+- Ensure animations enhance user experience

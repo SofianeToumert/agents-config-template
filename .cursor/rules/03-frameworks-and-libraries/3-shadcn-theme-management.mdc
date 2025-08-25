@@ -1,5 +1,5 @@
 ---
-description: APPLY rule WHEN using Shadcn/ui component library
+description: APPLY rule WHEN using Shadcn/ui component library theming
 alwaysApply: false
 ---
 
