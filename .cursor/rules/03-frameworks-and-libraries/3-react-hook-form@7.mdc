@@ -1,5 +1,103 @@
 ---
-description:
-globs:
+description: Apply React Hook Form v7+ standards for form state management, TypeScript integration, Zod validation, performance optimization, and type safety when building forms in Vite + TypeScript web applications
+globs: src/**/*.{ts,tsx}
 alwaysApply: false
 ---
+
+Form Setup & Configuration:
+
+- Use `useForm<TFormData>()` with explicit TypeScript generics
+- Configure `resolver: zodResolver(schema)` for Zod validation
+- Set `mode: 'onBlur'` or `mode: 'onChange'` for validation timing
+- Provide `defaultValues` with proper TypeScript types
+- Use `criteriaMode: 'all'` to show all validation errors
+- Configure `shouldFocusError: true` for better UX
+- Set `reValidateMode: 'onChange'` for real-time validation
+
+Schema Definition & Validation:
+
+- Define Zod schemas with `z.object()` for form data
+- Use `z.infer<typeof schema>` for TypeScript type inference
+- Apply `.min()`, `.max()`, `.email()` for field validation
+- Use `.optional()` and `.nullable()` for optional fields
+- Implement `.refine()` for custom validation logic
+- Create reusable schema components with `.extend()`
+- Use `.transform()` for data transformation before validation
+- Apply `.default()` for default values in schemas
+
+Field Registration & Management:
+
+- Use `register(name)` with proper field names
+- Apply `{ required: true }` for required fields
+- Use `Controller` component for complex inputs
+- Implement `useFieldArray` for dynamic form arrays
+- Apply `useController` for custom field components
+- Use `setValue` and `getValues` for programmatic updates
+- Implement `watch` for reactive field monitoring
+- Use `trigger` for manual validation triggering
+
+Form State & Performance:
+
+- Monitor `formState.isDirty` for unsaved changes
+- Use `formState.isValid` for overall form validity
+- Check `formState.isSubmitting` for loading states
+- Monitor `formState.errors` for field-specific errors
+- Use `formState.touchedFields` for user interaction tracking
+- Implement `formState.dirtyFields` for changed fields
+- Use `subscribe` for custom state subscriptions
+- Apply `shouldUnregister: false` for performance optimization
+
+Error Handling & UX:
+
+- Display errors using `formState.errors[fieldName]`
+- Show loading states during form submission
+- Implement proper error message formatting
+- Use `setError` for custom error setting
+- Apply `clearErrors` for error cleanup
+- Implement `handleSubmit` with error handling
+- Use `onSubmit` and `onError` callbacks
+- Apply proper accessibility attributes
+
+TypeScript Best Practices:
+
+- Define form data types using Zod schema inference
+- Use `FieldPath<TFormData>` for field name types
+- Apply `FieldError` type for error handling
+- Use `SubmitHandler<TFormData>` for submission handlers
+- Implement `UseFormReturn<TFormData>` for hook return types
+- Apply `ControllerRenderProps` for Controller components
+- Use `UseFieldArrayReturn` for field array types
+- Implement strict typing with `strict: true`
+
+Form Submission & Data Handling:
+
+- Use `handleSubmit(onSubmit, onError)` for form submission
+- Implement async submission handlers with proper typing
+- Use `reset()` with proper data types for form reset
+- Apply `resetField()` for individual field reset
+- Use `setFocus()` for programmatic focus management
+- Implement `getFieldState()` for field-specific state
+- Use `unregister()` for dynamic field removal
+- Apply proper error boundaries for submission errors
+
+Performance Optimization:
+
+- Use `useCallback` for submission handlers
+- Implement `useMemo` for expensive computations
+- Apply `React.memo` for form components
+- Use `shouldUnregister: false` for better performance
+- Implement proper dependency arrays in hooks
+- Use `useWatch` sparingly to prevent unnecessary re-renders
+- Apply `useFormState` for selective state subscriptions
+- Use `useFormContext` for nested form components
+
+Accessibility & Standards:
+
+- Apply proper `aria-describedby` for error messages
+- Use `aria-invalid` for invalid field states
+- Implement `aria-required` for required fields
+- Use proper form labels with `htmlFor` attributes
+- Apply `role` attributes for custom form components
+- Use `tabIndex` for proper keyboard navigation
+- Implement proper focus management with `setFocus`
+- Apply `aria-live` for dynamic error announcements
