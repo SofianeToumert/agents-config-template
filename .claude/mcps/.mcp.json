@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "figma-dev-mode-mcp-server": {
+      "type": "http",
+      "url": "http://127.0.0.1:3845/mcp"
+    },
+    "browser-tools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "u/agentdeskai/browser-tools-mcp@1.2.0"
+      ],
+      "env": {}
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "postgres-dev": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://oorvoo:password@localhost:5432/oorvoo_db"
+      ]
+    }
+  }
+}

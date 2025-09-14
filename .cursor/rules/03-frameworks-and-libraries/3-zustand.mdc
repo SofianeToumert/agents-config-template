@@ -1,274 +1,349 @@
 ---
 description: Apply Zustand state management standards for store architecture, TypeScript integration, middleware composition, and TanStack Query integration when creating state management solutions in Vite + TypeScript web applications
-globs: src/**/*.ts, src/**/*.tsx, src/stores/**/*.ts, src/stores/**/*.tsx
+globs: src/stores/**/*.ts, src/stores/**/*.tsx
 alwaysApply: false
 ---
 
-# Store Creation and TypeScript Integration
+# 🔧 Philosophy
 
-- Use `create<State>()()` syntax for type-safe store creation
-- Define explicit interfaces for state and actions
-- Separate state from actions in type definitions
-- Use `StateCreator` type for slice implementations
-- Leverage TypeScript generics for reusable store patterns
+- **Per‑module ownership**: each domain (e.g., `users`, `posts`) owns its Zustand store (types, actions, selectors, tests).
+- **Server vs UI state**: keep **server data** in TanStack Query; use Zustand for **UI/ephemeral** and control state (ids, filters, modal flags).
+- **Minimal shared layer**: only client‑agnostic utilities (middleware helpers, logger, persist helpers) live in `src/lib/zustand`.
 
-```typescript
-interface BearState {
-  bears: number;
-  increase: (by: number) => void;
-}
+---
 
-const useBearStore = create<BearState>()((set) => ({
-  bears: 0,
-  increase: (by) => set((state) => ({ bears: state.bears + by })),
-}));
+## 🗂️ Project Structure (by module)
+
+```
+src/
+  modules/
+    onboarding/
+      store/
+        types.ts            // State & actions types
+        store.ts            // create store + middleware composition
+        selectors.ts        // stable selectors (exported constants)
+        middleware.ts       // (optional) module‑specific middleware
+        index.ts            // barrel exports
+
+  lib/
+    zustand/
+      createStore.ts        // factory helpers to compose middleware
+      types.ts              // shared TypeScript utilities (mutator ids, helpers)
+      persist.ts            // persistence helpers (storage, version, migrate)
+      logger.ts             // typed custom logger middleware
+      selectors.ts          // helper for selector utilities, shallow export
+      devtools.ts           // (optional) devtools setup for dev only
 ```
 
-# Middleware Integration
+> Rule: **Nothing domain‑specific lives under `lib/zustand`**.
 
-- Compose middleware using nested function calls
-- Use `devtools` for development debugging
-- Apply `persist` for state persistence with unique names
-- Integrate `immer` for immutable updates
-- Combine multiple middleware in logical order
+---
 
-```typescript
-const useStore = create<State>()(
-  devtools(
-    persist(
-      immer((set) => ({
-        // store implementation
-      })),
-      { name: "unique-store-name" }
-    )
-  )
-);
+## 🧱 Shared Utilities (in `src/lib/zustand`)
+
+### `types.ts`
+
+```ts
+// src/lib/zustand/types.ts
+import type { StateCreator, StoreMutatorIdentifier } from 'zustand'
+
+export type Mutators = [
+  ['zustand/immer', never],
+  ['zustand/persist', unknown]?,
+  ['logger', never]?,
+]
+
+export type WithImmer<T> = StateCreator<T, [['zustand/immer', never]]>
+export type WithAll<T> = StateCreator<T, Mutators>
+
+export type NamedSet<T> = (
+  partial: T | Partial<T> | ((state: T) => T | Partial<T>),
+  replace?: boolean,
+  action?: string
+) => void
 ```
 
-# Slices Pattern for Modular Stores
+### `persist.ts`
 
-- Create separate slice functions for each domain
-- Use `StateCreator` with proper type parameters
-- Combine slices using spread operator
-- Maintain type safety across slice boundaries
-- Reuse slice logic across different stores
+```ts
+// src/lib/zustand/persist.ts
+import { persist, createJSONStorage } from 'zustand/middleware'
 
-```typescript
-const createBearSlice: StateCreator<
-  BearSlice & FishSlice,
-  [],
-  [],
-  BearSlice
-> = (set) => ({
-  bears: 0,
-  addBear: () => set((state) => ({ bears: state.bears + 1 })),
-});
-
-const useBoundStore = create<BearSlice & FishSlice>()((...a) => ({
-  ...createBearSlice(...a),
-  ...createFishSlice(...a),
-}));
+export const withPersist = <T>(
+  key: string,
+  partialize?: (s: T) => Partial<T>,
+  version = 1
+) =>
+  persist<T>((f) => f as any, {
+    name: key,
+    version,
+    storage: createJSONStorage(() => localStorage),
+    partialize,
+    // optional migration
+    migrate: (persisted, v) =>
+      v < version ? { ...(persisted as object) } : (persisted as any),
+    skipHydration: true,
+    onRehydrateStorage: () => (state, err) => {
+      if (err) console.error(`[zustand] rehydrate failed for ${key}`, err)
+    },
+  })
 ```
 
-# TanStack Query Integration
+### `logger.ts`
 
-- Use Zustand for UI state, TanStack Query for server state
-- Sync query cache with Zustand store when needed
-- Implement optimistic updates with Zustand for immediate UI feedback
-- Centralize error state management across stores and queries
-- Coordinate loading states between stores and queries
+```ts
+// src/lib/zustand/logger.ts
+import type { StateCreator, StoreMutatorIdentifier } from 'zustand'
 
-```typescript
-// UI state in Zustand
-const useUIStore = create<UIState>()((set) => ({
-  selectedUserId: null,
-  setSelectedUser: (id) => set({ selectedUserId: id }),
-}));
-
-// Server state with TanStack Query
-const useUserQuery = (userId: string) =>
-  useQuery({
-    queryKey: ["user", userId],
-    queryFn: () => fetchUser(userId),
-    enabled: !!userId,
-  });
-```
-
-# Persistence and Storage
-
-- Use `persist` middleware with unique store names
-- Implement `partialize` for selective state persistence
-- Configure storage type (localStorage, sessionStorage, custom)
-- Handle hydration with `skipHydration` when needed
-- Use `createJSONStorage` for custom storage engines
-
-```typescript
-const usePersistedStore = create<State>()(
-  persist(
-    (set) => ({
-      // store implementation
-    }),
-    {
-      name: "unique-persist-name",
-      partialize: (state) => ({ user: state.user }),
-      storage: createJSONStorage(() => sessionStorage),
-    }
-  )
-);
-```
-
-# Performance Optimization
-
-- Use selective subscriptions with selector functions
-- Implement shallow equality checks for object updates
-- Avoid unnecessary re-renders with proper state structure
-- Use `subscribeWithSelector` for fine-grained subscriptions
-- Implement proper cleanup in component unmount
-
-```typescript
-// Selective subscription
-const bears = useBearStore((state) => state.bears);
-
-// Shallow equality for objects
-const useStore = create<State>()((set) => ({
-  user: { id: 1, name: "John" },
-  updateUser: (updates) =>
-    set((state) => ({
-      user: { ...state.user, ...updates },
-    })),
-}));
-```
-
-# Error Handling and Loading States
-
-- Centralize error state management
-- Implement loading state coordination
-- Use proper error boundaries with store state
-- Handle async operations with proper state updates
-- Implement retry logic for failed operations
-
-```typescript
-interface AppState {
-  isLoading: boolean;
-  error: string | null;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-}
-
-const useAppStore = create<AppState>()((set) => ({
-  isLoading: false,
-  error: null,
-  setLoading: (loading) => set({ isLoading: loading }),
-  setError: (error) => set({ error }),
-}));
-```
-
-# Custom Middleware Development
-
-- Define proper TypeScript types for custom middleware
-- Use `StoreMutatorIdentifier` for type safety
-- Implement middleware that extends store capabilities
-- Follow Zustand middleware patterns and conventions
-- Document middleware behavior and usage
-
-```typescript
-type Logger = <
+export type Logger = <
   T,
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
-  Mcs extends [StoreMutatorIdentifier, unknown][] = []
+  Mcs extends [StoreMutatorIdentifier, unknown][] = [],
 >(
   f: StateCreator<T, Mps, Mcs>,
   name?: string
-) => StateCreator<T, Mps, Mcs>;
+) => StateCreator<T, Mps, [['logger', never], ...Mcs]>
 
-const logger: Logger = (f, name) => (set, get, store) => {
-  const loggedSet: typeof set = (...a) => {
-    set(...a);
-    console.log(name, get());
-  };
-  return f(loggedSet, get, store);
-};
+export const logger: Logger =
+  (f, name = 'store') =>
+  (set, get, store) => {
+    const namedSet: typeof set = (partial, replace, action = 'set') => {
+      set(partial as any, replace, action)
+      if (process.env.NODE_ENV !== 'test')
+        console.log(`[${name}] ${action}`, get())
+    }
+    return f(namedSet, get, store)
+  }
 ```
 
-# Store Organization and Architecture
+### `createStore.ts`
 
-- Organize stores by feature/domain
-- Use consistent naming conventions
-- Implement proper store separation of concerns
-- Create store factories for reusable patterns
-- Maintain clear store boundaries and responsibilities
+```ts
+// src/lib/zustand/createStore.ts
+import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 
-```typescript
-// Feature-based organization
-// stores/auth.ts
-export const useAuthStore = create<AuthState>()(/* ... */);
-
-// stores/ui.ts
-export const useUIStore = create<UIState>()(/* ... */);
-
-// stores/data.ts
-export const useDataStore = create<DataState>()(/* ... */);
+export const createDevStore = <T>(
+  initializer: Parameters<typeof create<T>>[0],
+  name: string
+) => create<T>()(devtools(initializer as any, { name }))
 ```
 
-# Vanilla Store Patterns
+### `selectors.ts`
 
-- Use `createStore` for non-React environments
-- Implement proper subscription management
-- Handle store lifecycle and cleanup
-- Use vanilla stores for shared state across contexts
-- Implement proper state synchronization
-
-```typescript
-const vanillaStore = createStore<State>()((set, get) => ({
-  count: 0,
-  increment: () => set((state) => ({ count: state.count + 1 })),
-}));
-
-// Subscribe to changes
-const unsubscribe = vanillaStore.subscribe((state) => {
-  console.log("State changed:", state);
-});
+```ts
+// src/lib/zustand/selectors.ts
+export { shallow } from 'zustand/shallow'
 ```
 
-# Testing and Development
+---
 
-- Use `devtools` middleware for development debugging
-- Implement proper store testing patterns
-- Mock stores for component testing
-- Use store snapshots for testing
-- Implement proper store reset functionality
+## 👤 Module Example: `users`
 
-```typescript
-const useTestStore = create<State>()(
-  devtools(
-    (set) => ({
-      // store implementation
-    }),
-    { name: "test-store" }
-  )
-);
+### `types.ts`
+
+```ts
+// src/modules/users/store/types.ts
+export type UserFilters = { page: number; query: string }
+
+export type UsersState = {
+  // UI state only
+  selectedId: string | null
+  filters: UserFilters
+  hydrated: boolean
+}
+
+export type UsersActions = {
+  setSelected: (id: string | null) => void
+  setFilters: (p: Partial<UserFilters>) => void
+  setHydrated: (v: boolean) => void
+  reset: () => void
+}
+
+export type UsersStore = UsersState & UsersActions
 ```
 
-# Query Cache Synchronization
+### `store.ts`
 
-- Sync TanStack Query cache with Zustand store updates
-- Implement cache invalidation strategies
-- Use optimistic updates for better UX
-- Handle cache conflicts and resolution
-- Maintain data consistency across stores and queries
+```ts
+// src/modules/users/store/store.ts
+import { create } from 'zustand'
+import { immer } from 'zustand/middleware/immer'
+import { persist } from 'zustand/middleware'
+import { devtools, createJSONStorage } from 'zustand/middleware'
+import type { UsersStore } from './types'
 
-```typescript
-const useSyncStore = create<SyncState>()((set, get) => ({
-  updateUser: async (userId, updates) => {
-    // Optimistic update in Zustand
-    set((state) => ({
-      users: state.users.map((u) =>
-        u.id === userId ? { ...u, ...updates } : u
+const initialState: UsersStore = {
+  selectedId: null,
+  filters: { page: 1, query: '' },
+  hydrated: false,
+  setSelected: () => {},
+  setFilters: () => {},
+  setHydrated: () => {},
+  reset: () => {},
+}
+
+export const createUsersStore = (preloaded?: Partial<UsersStore>) =>
+  create<UsersStore>()(
+    devtools(
+      persist(
+        immer((set, get) => ({
+          ...initialState,
+          ...preloaded,
+          setSelected: (id) => set({ selectedId: id }, false, 'users/select'),
+          setFilters: (p) =>
+            set(
+              (s) => void Object.assign(s.filters, p),
+              false,
+              'users/setFilters'
+            ),
+          setHydrated: (v) => set({ hydrated: v }, false, 'users/hydrated'),
+          reset: () => set({ ...initialState }, true, 'users/reset'),
+        })),
+        {
+          name: 'users-ui-v1',
+          version: 1,
+          storage: createJSONStorage(() => localStorage),
+          partialize: (s) => ({ selectedId: s.selectedId, filters: s.filters }),
+          skipHydration: true,
+          onRehydrateStorage: () => (state) => state?.setHydrated(true),
+        }
       ),
-    }));
+      { name: 'usersStore' }
+    )
+  )
 
-    // Sync with TanStack Query cache
-    queryClient.setQueryData(["user", userId], updates);
-  },
-}));
+// App singleton (most apps)
+export const useUsersStore = createUsersStore()
+
+// Helpers
+export const resetUsersStore = () =>
+  useUsersStore.setState(
+    { selectedId: null, filters: { page: 1, query: '' } },
+    true
+  )
 ```
+
+### `selectors.ts`
+
+```ts
+// src/modules/users/store/selectors.ts
+import { shallow } from '@/lib/zustand/selectors'
+import { useUsersStore } from './store'
+
+export const selectSelectedId = (
+  s: ReturnType<typeof useUsersStore.getState>
+) => s.selectedId
+export const selectFilters = (s: ReturnType<typeof useUsersStore.getState>) =>
+  s.filters
+export const useUsersListParams = () =>
+  useUsersStore(
+    (s) => ({ page: s.filters.page, query: s.filters.query }),
+    shallow
+  )
+```
+
+### `index.ts`
+
+```ts
+// src/modules/users/store/index.ts
+export * from './types'
+export * from './store'
+export * from './selectors'
+```
+
+---
+
+## 🔗 TanStack Query Integration (per‑module)
+
+- Keep **filters/ids** in the module store. Use them to build Query keys.
+- **Do not** duplicate fetched entities in Zustand.
+
+```ts
+// src/modules/users/queries.ts (example usage)
+import { useQuery } from '@tanstack/react-query'
+import { useUsersListParams } from './store'
+import { fetchUsers } from '@/modules/users/api' // server call (not persisted)
+
+export const useUsersQuery = () => {
+  const { page, query } = useUsersListParams()
+  return useQuery({
+    queryKey: ['users', 'list', { page, query }],
+    queryFn: ({ signal }) => fetchUsers({ page, query }, { signal }),
+    placeholderData: (prev) => prev, // smooth pagination if applicable
+  })
+}
+```
+
+> If you optimistically patch UI in Zustand, also patch the Query cache (source of truth) to avoid drift.
+
+---
+
+## ⚡ Performance Guidelines
+
+- Use **selectors** and `shallow` when selecting objects.
+- Model state to minimize invalidation (avoid huge nested objects; prefer smaller, focused branches).
+- For external effects, use `subscribeWithSelector` (no React re‑renders).
+- Name actions in `set`’s third param for devtools traceability (e.g., `'users/select'`).
+
+---
+
+## 💾 Persistence
+
+- Persist only **primitive/POJO** UI state (ids, filters). Avoid persisting functions or transient flags.
+- Use `{ version, migrate }` and `partialize` to control schema changes.
+- In SSR/Next, prefer `skipHydration: true` + a `hydrated` flag to gate UI.
+
+---
+
+## 🧪 Testing Patterns
+
+- Export a **factory** (`createUsersStore`) to create isolated test instances.
+- Provide a `reset*Store()` helper for deterministic tests.
+- In component tests, mock store with `act(() => useUsersStore.setState(...))`.
+
+```ts
+import { act, renderHook } from '@testing-library/react'
+import { useUsersStore, resetUsersStore } from '@/modules/users/store'
+
+afterEach(() => resetUsersStore())
+
+test('select user', () => {
+  act(() => useUsersStore.getState().setSelected('u_1'))
+  expect(useUsersStore.getState().selectedId).toBe('u_1')
+})
+```
+
+---
+
+## 🧩 Custom Middleware (typed)
+
+- Prefer typed mutators to preserve types across slices.
+- Place cross‑cutting middleware in `lib/zustand`.
+
+```ts
+// Example usage in a module
+import { logger } from '@/lib/zustand/logger'
+
+// compose: devtools -> persist -> immer -> logger if needed
+```
+
+---
+
+## ❌ Anti‑Patterns
+
+- Mirroring server entities in Zustand **and** Query.
+- Persisting modal flags, loading spinners, or functions by default.
+- Anonymous inline selectors recreated on every render (export constants instead).
+- Over‑nested state shapes causing broad invalidations.
+
+---
+
+## ✅ Quick Checklist (per‑module)
+
+- Store lives in `src/modules/<domain>/store` with `types.ts`, `store.ts`, `selectors.ts`, `index.ts`.
+- Actions are named (third `set` arg) for devtools.
+- `persist` uses `partialize`, `version`, and `migrate`; `skipHydration` + `hydrated` flag if SSR.
+- Use selectors + `shallow` for object picks; `subscribeWithSelector` for side‑effects.
+- Only UI/ephemeral state in Zustand; **never** duplicate React Query data.
+- Expose `create*Store` and `reset*Store` for testing & SSR.

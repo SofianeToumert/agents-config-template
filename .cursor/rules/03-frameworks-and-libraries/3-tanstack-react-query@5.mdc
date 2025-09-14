@@ -1,311 +1,487 @@
 ---
-description: APPLY rule WHEN using Tanstack React Query library
+description: APPLY rule WHEN using TanStack React Query (v5+) with a **by‑module** architecture (each domain owns its keys/options/queries/mutations)
 alwaysApply: false
 ---
 
-## 🗂️ Folder Structure Example
+# 🔧 Philosophy
+
+- **Each domain module self‑contains** its React Query pieces: keys, schemas, API fetchers, options builders, hooks (queries & mutations), and local tests.
+- **Shared-only** items live in `src/lib/tanstack`: client factory, global typings, HTTP util, (optional) devtools & persistence.
+- Encourages **precise invalidation**, easy code‑splitting, and clear ownership.
+
+---
+
+## 🗂️ Project Structure (by module)
 
 ```
 src/
+  modules/
+    onboarding/
+      api/
+        index.ts                  // barrel re-exports for the module
+        keys.ts                   // query-key factory (users)
+        schema.ts                 // zod schemas & types
+        api.ts                    // fetchers (use http util, Zod-validated)
+        options.ts                // queryOptions/mutationOptions builders
+        queries.ts                // useQuery/useSuspenseQuery hooks
+        mutations.ts              // useMutation hooks (optimistic updates)
+
+    clinic/
+      api/                   // another domain (same pattern)
+        index.ts
+        keys.ts
+        schema.ts
+        api.ts
+        options.ts
+        queries.ts
+        mutations.ts
+
   lib/
     tanstack/
-      client.ts              // QueryClient & Provider setup
-      types.ts               // Shared query types and global registrations
-      keys/                  // Centralized query keys
-        userKeys.ts
-        postKeys.ts
-      options/               // Shared query and mutation options
-        userOptions.ts
-        postOptions.ts
-      hooks/
-        useUserQuery.ts
-        useCreateUserMutation.ts
-      fetchers/
-        fetchUser.ts
-        createUser.ts
+      client.ts                 // QueryClient factory & exported singleton
+      types.ts                  // Global Register typings (keys, error, meta)
+      utils/
+        http.ts                 // fetch wrapper (AbortSignal + error shape)
+      devtools.ts               // (optional) RQ Devtools in dev only
+      persist.ts                // (optional) cache persistence setup
 ```
 
-## 🔑 Query Key Conventions
+> **Only** keep generic, cross‑module utilities in `lib/tanstack`. Everything domain‑specific stays inside its module.
+
+---
+
+## 🗝️ Module: `users` (reference implementation)
+
+### `keys.ts`
 
 ```ts
-const userKeys = {
-  all: ["users"] as const,
-  list: (filters: { page: number }) => ["users", "list", filters] as const,
-  detail: (id: string) => ["users", "detail", id] as const,
-  search: (query: string) => ["users", "search", query] as const,
-};
+// src/modules/onboarding/api/keys.ts (actual implementation example)
+const authBase = ['auth'] as const
+
+export const authKeys = {
+  all: () => authBase,
+  
+  // Query keys following hierarchical pattern
+  user: () => [...authBase, 'detail', 'user'] as const,
+
+  // Mutation keys (flat pattern for mutations)
+  signupOnboard: () => ['auth', 'signupOnboard'] as const,
+  signupVerifyEmail: () => ['auth', 'signupVerifyEmail'] as const,
+  signupCreatePassword: () => ['auth', 'signupCreatePassword'] as const,
+  updatePersonalInfo: () => ['auth', 'updatePersonalInfo'] as const,
+  updateProfessionalInfo: () => ['auth', 'updateProfessionalInfo'] as const,
+} as const
 ```
 
-- Always define keys as `as const` tuples
-- Use descriptive key names for better debugging
-- Include dynamic parameters in key arrays
-- Avoid string concatenation like `'users_detail_1'`
-
-## 🎯 Query Options Helper
+### `schema.ts`
 
 ```ts
-import { queryOptions } from "@tanstack/react-query";
+// src/modules/users/schema.ts
+import { z } from 'zod'
 
-export const userOptions = {
+export const userSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+})
+export type User = z.infer<typeof userSchema>
+
+export const usersPageSchema = z.object({
+  items: z.array(userSchema),
+  page: z.number(),
+  pageCount: z.number(),
+})
+export type UsersPage = z.infer<typeof usersPageSchema>
+```
+
+### `api.ts`
+
+```ts
+// src/modules/users/api.ts
+import { http } from '@/lib/tanstack/utils/http'
+import {
+  userSchema,
+  usersPageSchema,
+  type User,
+  type UsersPage,
+} from './schema'
+
+export async function fetchUser(
+  id: string,
+  { signal }: { signal?: AbortSignal } = {}
+): Promise<User> {
+  const json = await http<unknown>(`/api/users/${id}`, { signal })
+  return userSchema.parse(json)
+}
+
+export async function fetchUsers(
+  filters: { page: number },
+  { signal }: { signal?: AbortSignal } = {}
+): Promise<UsersPage> {
+  const qs = new URLSearchParams({ page: String(filters.page) }).toString()
+  const json = await http<unknown>(`/api/users?${qs}`, { signal })
+  return usersPageSchema.parse(json)
+}
+
+export async function createUser(
+  input: Pick<User, 'name' | 'email'>
+): Promise<User> {
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) throw new Error('Failed to create user')
+  return userSchema.parse(await res.json())
+}
+
+export async function updateUser(
+  id: string,
+  patch: Partial<User>
+): Promise<User> {
+  const res = await fetch(`/api/users/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (!res.ok) throw new Error('Failed to update user')
+  return userSchema.parse(await res.json())
+}
+```
+
+### `options.ts`
+
+```ts
+// src/modules/users/options.ts
+import {
+  keepPreviousData,
+  mutationOptions,
+  queryOptions,
+} from '@tanstack/react-query'
+import { userKeys } from './keys'
+import { fetchUser, fetchUsers, createUser, updateUser } from './api'
+
+export const userQueryOptions = {
   list: (filters: { page: number }) =>
     queryOptions({
       queryKey: userKeys.list(filters),
-      queryFn: () => fetchUsers(filters),
-      staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 60,
+      queryFn: ({ signal }) => fetchUsers(filters, { signal }),
+      placeholderData: keepPreviousData, // v5 pagination
+      staleTime: 5 * 60 * 1000,
+      gcTime: 60 * 60 * 1000,
     }),
 
   detail: (id: string) =>
     queryOptions({
       queryKey: userKeys.detail(id),
-      queryFn: () => fetchUser(id),
-      enabled: !!id,
+      queryFn: ({ signal }) => fetchUser(id, { signal }),
+      enabled: Boolean(id && id.trim()),
     }),
-};
-```
-
-## 🧵 Hook Template with Query Options
-
-```ts
-import { useQuery } from "@tanstack/react-query";
-import { userOptions } from "../options/userOptions";
-
-export const useUserQuery = (id: string) => {
-  return useQuery(userOptions.detail(id));
-};
-
-export const useUsersQuery = (filters: { page: number }) => {
-  return useQuery(userOptions.list(filters));
-};
-```
-
-## 🧬 Mutation Options Helper
-
-```ts
-import { mutationOptions } from "@tanstack/react-query";
+}
 
 export const userMutationOptions = {
   create: () =>
     mutationOptions({
-      mutationKey: ["users", "create"],
+      mutationKey: ['users', 'create'],
       mutationFn: createUser,
     }),
 
   update: (id: string) =>
     mutationOptions({
-      mutationKey: ["users", "update", id],
-      mutationFn: (data: UpdateUserData) => updateUser(id, data),
+      mutationKey: ['users', 'update', id],
+      mutationFn: (data: Partial<Parameters<typeof updateUser>[1]>) =>
+        updateUser(id, data as any),
     }),
-};
+}
 ```
 
-## 🔄 Mutation Hook Template
+### `queries.ts`
 
 ```ts
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { userMutationOptions } from "../options/userOptions";
-import { userKeys } from "../keys/userKeys";
+// src/modules/users/queries.ts
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { userQueryOptions } from './options'
+
+export const useUsersQuery = (filters: { page: number }) =>
+  useQuery(userQueryOptions.list(filters))
+export const useUserQuery = (id: string) =>
+  useQuery(userQueryOptions.detail(id))
+
+// Only inside <Suspense> + <ErrorBoundary>
+export const useUserSuspense = (id: string) =>
+  useSuspenseQuery(userQueryOptions.detail(id))
+```
+
+### `mutations.ts`
+
+```ts
+// src/modules/users/mutations.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { userMutationOptions } from './options'
+import { userKeys } from './keys'
+import type { User, UsersPage } from './schema'
 
 export const useCreateUserMutation = () => {
-  const queryClient = useQueryClient();
-
+  const qc = useQueryClient()
   return useMutation({
     ...userMutationOptions.create(),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all });
-      queryClient.setQueryData(userKeys.detail(data.id), data);
+    onSuccess: (created) => {
+      qc.setQueryData(userKeys.detail(created.id), created)
+      qc.invalidateQueries({ queryKey: userKeys.lists() })
     },
-  });
-};
+  })
+}
+
+export const useUpdateUserMutation = (id: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    ...userMutationOptions.update(id),
+    onMutate: async (patch: Partial<User>) => {
+      await qc.cancelQueries({ queryKey: userKeys.detail(id) })
+
+      const prevDetail = qc.getQueryData<User>(userKeys.detail(id))
+      if (prevDetail) {
+        qc.setQueryData<User>(userKeys.detail(id), { ...prevDetail, ...patch })
+      }
+
+      const listSnapshots = qc.getQueriesData<UsersPage>({
+        queryKey: userKeys.lists(),
+      })
+      listSnapshots.forEach(([key, old]) => {
+        if (!old) return
+        qc.setQueryData<UsersPage>(key, {
+          ...old,
+          items: old.items.map((u) => (u.id === id ? { ...u, ...patch } : u)),
+        })
+      })
+
+      return { prevDetail, listSnapshots }
+    },
+    onError: (_e, _vars, ctx) => {
+      if (!ctx) return
+      qc.setQueryData(userKeys.detail(id), ctx.prevDetail)
+      ctx.listSnapshots?.forEach(([key, data]) => qc.setQueryData(key, data))
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: userKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: userKeys.lists() })
+    },
+  })
+}
 ```
 
-## 🏗️ QueryClient Setup
+### `index.ts`
 
 ```ts
-import { QueryClient } from "@tanstack/react-query";
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 60,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
+// src/modules/users/index.ts
+export * from './keys'
+export * from './schema'
+export * from './api'
+export * from './options'
+export * from './queries'
+export * from './mutations'
 ```
 
-## 🔍 Global Type Registration
+---
+
+## 🧩 Another Module (posts) — minimal example
 
 ```ts
-// types.ts
-import "@tanstack/react-query";
+// src/modules/posts/keys.ts
+export const postKeys = {
+  all: () => ['posts'] as const,
+  list: (f: { page: number }) => ['posts', 'list', f] as const,
+  detail: (id: string) => ['posts', 'detail', id] as const,
+}
+```
 
-type QueryKey = ["users" | "posts" | "todos", ...ReadonlyArray<unknown>];
+```ts
+// src/modules/posts/options.ts
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
+import { postKeys } from './keys'
+import { fetchPosts, fetchPost } from './api'
 
-declare module "@tanstack/react-query" {
+export const postQueryOptions = {
+  list: (f: { page: number }) =>
+    queryOptions({
+      queryKey: postKeys.list(f),
+      queryFn: ({ signal }) => fetchPosts(f, { signal }),
+      placeholderData: keepPreviousData,
+    }),
+  detail: (id: string) =>
+    queryOptions({
+      queryKey: postKeys.detail(id),
+      queryFn: ({ signal }) => fetchPost(id, { signal }),
+      enabled: Boolean(id && id.trim()),
+    }),
+}
+```
+
+---
+
+## 🏗️ Shared Layer (`lib/tanstack`)
+
+### `client.ts`
+
+```ts
+// src/lib/tanstack/client.ts
+import { QueryClient } from '@tanstack/react-query'
+
+export function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        refetchOnWindowFocus: false,
+        retry: 1,
+        staleTime: 5 * 60 * 1000,
+        gcTime: 60 * 60 * 1000,
+      },
+      mutations: { retry: 1 },
+    },
+  })
+}
+
+export const queryClient = createQueryClient()
+```
+
+### `types.ts`
+
+```ts
+// src/lib/tanstack/types.ts
+import '@tanstack/react-query'
+
+export type AppRoot = 'users' | 'posts' | 'todos'
+export type AppKey = readonly [AppRoot, ...(readonly unknown[])]
+
+declare module '@tanstack/react-query' {
   interface Register {
-    queryKey: QueryKey;
-    mutationKey: QueryKey;
+    queryKey: AppKey
+    mutationKey: AppKey
+    defaultError: { message: string; code?: string }
+    queryMeta: { skipAuth?: boolean }
+    mutationMeta: { analytics?: { action: string } }
   }
 }
 ```
 
-## 🎭 Optimistic Updates
+### `utils/http.ts`
 
 ```ts
-export const useUpdateUserMutation = (id: string) => {
-  const queryClient = useQueryClient();
+// src/lib/tanstack/utils/http.ts
+export type HttpOptions = {
+  signal?: AbortSignal
+  headers?: Record<string, string>
+}
 
-  return useMutation({
-    ...userMutationOptions.update(id),
-    onMutate: async (newData) => {
-      await queryClient.cancelQueries({ queryKey: userKeys.detail(id) });
-      const previousData = queryClient.getQueryData(userKeys.detail(id));
-
-      queryClient.setQueryData(userKeys.detail(id), (old) => ({
-        ...old,
-        ...newData,
-      }));
-
-      return { previousData };
-    },
-    onError: (err, variables, context) => {
-      queryClient.setQueryData(userKeys.detail(id), context?.previousData);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.detail(id) });
-    },
-  });
-};
+export async function http<T>(url: string, opts: HttpOptions = {}): Promise<T> {
+  const res = await fetch(url, { signal: opts.signal, headers: opts.headers })
+  if (!res.ok) {
+    const message = await res.text().catch(() => 'Request failed')
+    throw { message, code: String(res.status) } as {
+      message: string
+      code?: string
+    }
+  }
+  return res.json() as Promise<T>
+}
 ```
 
-## 📊 Mutation State Hooks
+### (Optional) Devtools & Persistence
 
 ```ts
-import { useMutationState, useIsMutating } from "@tanstack/react-query";
-
-// Track all pending mutations
-export const usePendingMutations = () => {
-  return useMutationState({
-    filters: { status: "pending" },
-  });
-};
-
-// Count specific mutations
-export const useUserMutationCount = () => {
-  return useIsMutating({ mutationKey: ["users"] });
-};
+// src/lib/tanstack/devtools.ts
+export const ReactQueryDevtools =
+  process.env.NODE_ENV === 'development'
+    ? (await import('@tanstack/react-query-devtools')).ReactQueryDevtools
+    : () => null
 ```
-
-## 🧼 Type-Safe API Responses with Zod
 
 ```ts
-import { z } from "zod";
+// src/lib/tanstack/persist.ts
+import { persistQueryClient } from '@tanstack/react-query-persist-client'
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
+import { queryClient } from './client'
 
-const userSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string().email(),
-});
-
-export const fetchUser = async (id: string) => {
-  const res = await fetch(`/api/users/${id}`);
-  if (!res.ok) throw new Error("Failed to fetch user");
-  const json = await res.json();
-  return userSchema.parse(json);
-};
+export function enablePersistence() {
+  const persister = createSyncStoragePersister({ storage: window.localStorage })
+  persistQueryClient({ queryClient, persister })
+}
 ```
 
-## 🧪 Testing Patterns
+---
 
-```ts
-import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-const createTestQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
-const wrapper = ({ children }) => {
-  const testQueryClient = createTestQueryClient();
-  return (
-    <QueryClientProvider client={testQueryClient}>
-      {children}
-    </QueryClientProvider>
-  );
-};
-
-// Test hook
-const { result } = renderHook(() => useUserQuery("1"), { wrapper });
-await waitFor(() => expect(result.current.isSuccess).toBe(true));
-```
-
-## 📌 TypeScript Configuration
+## 📌 TypeScript Paths (by-module ergonomics)
 
 ```json
 {
   "compilerOptions": {
-    "strict": true,
     "baseUrl": "./src",
     "paths": {
-      "@lib/*": ["lib/*"],
-      "@hooks/*": ["lib/tanstack/hooks/*"],
-      "@fetchers/*": ["lib/tanstack/fetchers/*"],
-      "@keys/*": ["lib/tanstack/keys/*"],
-      "@options/*": ["lib/tanstack/options/*"]
+      "@tanstack/*": ["lib/tanstack/*"],
+      "@modules/*": ["modules/*"],
+      "@users/*": ["modules/users/*"],
+      "@posts/*": ["modules/posts/*"]
     }
   }
 }
 ```
 
-## ⚡ Performance Optimizations
+---
+
+## 🧪 Testing (module-local)
+
+- Provide a **module-local** `createTestQueryClient()` with `retry: false`.
+- Silence logs with `setLogger`.
+- Wrap hooks under test with `QueryClientProvider`.
 
 ```ts
-// Use select for data transformation
-const useUserNames = (filters: { page: number }) => {
-  return useQuery({
-    ...userOptions.list(filters),
-    select: (users) => users.map((user) => user.name),
-  });
-};
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, setLogger } from '@tanstack/react-query';
+import { useUserQuery } from '@/modules/users/queries';
 
-// Enable suspense for loading boundaries
-const useUserSuspense = (id: string) => {
-  return useQuery({
-    ...userOptions.detail(id),
-    suspense: true,
-  });
-};
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
+beforeAll(() => setLogger({ log: () => {}, warn: () => {}, error: () => {} }));
+
+const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
+  <QueryClientProvider client={createTestQueryClient()}>{children}</QueryClientProvider>
+);
+
+const { result } = renderHook(() => useUserQuery('1'), { wrapper });
+await waitFor(() => expect(result.current.isSuccess).toBe(true));
 ```
 
-## 🚫 Common Anti-Patterns
+---
 
-- Don't store app state in query cache
-- Don't re-fetch mutations—use `invalidateQueries`
-- Don't put hook results directly in dependency arrays
-- Don't use string concatenation for query keys
-- Don't forget to handle loading and error states
+## ⚡ Operational Guidance
 
-## ✅ Best Practices
+- **Pagination**: use `placeholderData: keepPreviousData` in module `options.ts`.
+- **Cancellation**: always pass `{ signal }` to fetchers.
+- **Transforms**: prefer `select` for light transforms; heavy transforms server‑side.
+- **Invalidation**: target `lists()`/`details()` in the relevant module; avoid global `all()` when possible.
+- **Suspense**: use `useSuspenseQuery` only under `<Suspense>` + `<ErrorBoundary>`.
+- **Serializability**: keys must be JSON‑safe primitives/POJOs.
 
-- Use `enabled: false` for conditional fetches
-- Use `select` to transform data efficiently
-- Use `keepPreviousData: true` for smooth pagination
-- Use `suspense: true` with proper boundaries
-- Use `queryOptions` and `mutationOptions` for reusability
-- Use global type registration for better type safety
-- Use optimistic updates for better UX
-- Use `useMutationState` for global mutation tracking
+---
 
-- ✅ Use `keepPreviousData: true` for smooth pagination
-- 🚫 Avoid storing app state in query cache
-- 🚫 Don’t re-fetch mutations—use `invalidateQueries`
+## 🚫 Anti‑Patterns (reiterated)
+
+- Storing UI/app state in React Query cache.
+- Re-fetching inside mutations rather than `invalidateQueries`.
+- String-concatenated keys; use factory functions.
+- Putting hook results in dependency arrays.
+- Enabling Suspense without proper boundaries.
+
+---
+
+## ✅ Quick Checklist (by-module)
+
+- Module owns: **keys, schema, api, options, queries, mutations**.
+- Shared layer only: **client**, **types**, **http util**, optional **devtools/persist**.
+- Fetchers consume **AbortSignal**.
+- `placeholderData: keepPreviousData` for paginated lists.
+- Precise invalidations + optimistic updates with rollback.
+- Global `Register` typing in `lib/tanstack/types.ts` for consistent keys & errors.
+- Per‑module tests with `retry: false` and silenced logger.
